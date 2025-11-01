@@ -1,4 +1,4 @@
-export const config = { runtime: "nodejs18.x" };
+export const config = { runtime: "nodejs" };
 
 import jwt from "jsonwebtoken";
 import * as admin from "firebase-admin";
