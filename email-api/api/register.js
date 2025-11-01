@@ -2,56 +2,69 @@ import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import { readBody } from "./_utils.js";
 
-export default async function handler(req, res) {
-  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "POST only" });
+const REQUIRED_ENV_VARS = [
+  "JWT_SECRET",
+  "GMAIL_USER",
+  "GMAIL_APP_PASSWORD",
+  "GITHUB_VERIFY_URL"
+];
 
-  const body = await readBody(req);
-  const email = body.email;
-  if (!email) return res.status(400).json({ ok: false, error: "missing email" });
+function ensureEnv() {
+  const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
+  if (missing.length) {
+    throw new Error(`Missing environment variables: ${missing.join(", ")}`);
+  }
+}
+
+export default async function handler(req, res) {
+  if (req.method !== "POST") {
+    return res.status(405).json({ ok: false, error: "POST only" });
+  }
 
   try {
-    const token = jwt.sign({ email }, process.env.JWT_SECRET, {
-      algorithm: "HS256",
-      expiresIn: "1h"
-    });
+    ensureEnv();
 
-    const githubPage = process.env.GITHUB_VERIFY_URL;
-    if (!githubPage) return res.status(500).json({ ok: false, error: "server: GITHUB_VERIFY_URL not set" });
+    const body = await readBody(req);
+    const email = body?.email?.trim();
+    if (!email) {
+      return res.status(400).json({ ok: false, error: "missing email" });
+    }
 
-    const httpsLink  = `${githubPage}?token=${encodeURIComponent(token)}`;
-    const schemeLink = `myapp://verify?token=${encodeURIComponent(token)}`;
-    const intentLink = `intent://verify?token=${encodeURIComponent(token)}#Intent;scheme=myapp;package=${process.env.ANDROID_PACKAGE};end`;
+    const token = jwt.sign(
+      { email: email.toLowerCase() },
+      process.env.JWT_SECRET,
+      {
+        algorithm: "HS256",
+        expiresIn: "1h"
+      }
+    );
 
-    const user = process.env.GMAIL_USER;
-    const pass = process.env.GMAIL_APP_PASSWORD;
+    const verificationUrl = `${process.env.GITHUB_VERIFY_URL}?token=${encodeURIComponent(token)}`;
 
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
       secure: false,
-      auth: { user, pass }
+      auth: {
+        user: process.env.GMAIL_USER,
+        pass: process.env.GMAIL_APP_PASSWORD
+      }
     });
 
-    const subject = "Verify your email";
-    const text = `
-Tap a link to verify your account:
-
-Open in app: ${schemeLink}
-Intent fallback: ${intentLink}
-HTTPS: ${httpsLink}
-
-Expires in 1 hour.`;
-
-    await transporter.sendMail({
-      from: process.env.MAIL_FROM || user,
+    const mailOptions = {
+      from: process.env.MAIL_FROM || process.env.GMAIL_USER,
       to: email,
-      subject,
-      text
-    });
+      subject: "Verify your email",
+      text: `Click the link below to verify your email address.\n\n${verificationUrl}\n\nThis link expires in 1 hour.`
+    };
+
+    await transporter.sendMail(mailOptions);
 
     return res.json({ ok: true });
-  } catch (e) {
-    console.error("register error:", e?.message || e);
-    return res.status(500).json({ ok: false, error: "send failed" });
+  } catch (error) {
+    console.error("register error:", error);
+    const message = error?.message || "send failed";
+    const status = message.toLowerCase().includes("missing environment") ? 500 : 500;
+    return res.status(status).json({ ok: false, error: message });
   }
 }
