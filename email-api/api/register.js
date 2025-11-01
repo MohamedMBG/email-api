@@ -15,9 +15,7 @@ function ensureEnv() {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== "POST") {
-    return res.status(405).json({ ok: false, error: "POST only" });
-  }
+  if (req.method !== "POST") return res.status(405).json({ ok: false, error: "POST only" });
 
   try {
     ensureEnv();
@@ -26,7 +24,6 @@ export default async function handler(req, res) {
     const email = (body?.email || "").trim();
     if (!email) return res.status(400).json({ ok: false, error: "missing email" });
 
-    // Sign a 1-hour JWT with the email only
     const token = jwt.sign(
       { email: email.toLowerCase() },
       process.env.JWT_SECRET,
@@ -35,18 +32,13 @@ export default async function handler(req, res) {
 
     const verificationUrl = `${process.env.GITHUB_VERIFY_URL}?token=${encodeURIComponent(token)}`;
 
-    // Gmail SMTP
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
       secure: false,
-      auth: {
-        user: process.env.GMAIL_USER,
-        pass: process.env.GMAIL_APP_PASSWORD
-      }
+      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASSWORD }
     });
 
-    // Verify connection/auth so we get a clear error if anything’s wrong
     await transporter.verify();
 
     await transporter.sendMail({
