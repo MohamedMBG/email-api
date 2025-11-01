@@ -1,0 +1,17 @@
+{
+  "name": "email-api",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
+  "dependencies": {
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.10"
+  }
+}
