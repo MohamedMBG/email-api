@@ -25,22 +25,22 @@ export default async function handler(req, res) {
     ensureEnv();
 
     const body = await readBody(req);
-    const email = body?.email?.trim();
+    const email = (body?.email || "").trim();
     if (!email) {
       return res.status(400).json({ ok: false, error: "missing email" });
     }
 
+    // Sign a 1-hour JWT with the email
     const token = jwt.sign(
       { email: email.toLowerCase() },
       process.env.JWT_SECRET,
-      {
-        algorithm: "HS256",
-        expiresIn: "1h"
-      }
+      { algorithm: "HS256", expiresIn: "1h" }
     );
 
+    // Verification link
     const verificationUrl = `${process.env.GITHUB_VERIFY_URL}?token=${encodeURIComponent(token)}`;
 
+    // Gmail SMTP transporter
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
       port: 587,
@@ -51,11 +51,15 @@ export default async function handler(req, res) {
       }
     });
 
+    // 🔍 Verify SMTP connection and credentials
+    await transporter.verify();
+
+    // Send the message
     const mailOptions = {
       from: process.env.MAIL_FROM || process.env.GMAIL_USER,
       to: email,
       subject: "Verify your email",
-      text: `Click the link below to verify your email address.\n\n${verificationUrl}\n\nThis link expires in 1 hour.`
+      text: `Click the link below to verify your email:\n\n${verificationUrl}\n\nThis link expires in 1 hour.`
     };
 
     await transporter.sendMail(mailOptions);
@@ -63,8 +67,10 @@ export default async function handler(req, res) {
     return res.json({ ok: true });
   } catch (error) {
     console.error("register error:", error);
-    const message = error?.message || "send failed";
-    const status = message.toLowerCase().includes("missing environment") ? 500 : 500;
-    return res.status(status).json({ ok: false, error: message });
+    const msg =
+      error?.response?.toString?.() ||
+      error?.message ||
+      String(error);
+    return res.status(500).json({ ok: false, error: msg });
   }
 }
