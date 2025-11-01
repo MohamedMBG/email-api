@@ -7,18 +7,13 @@ export default async function handler(req, res) {
 
   const body = await readBody(req);
   const email = body.email;
-  const uid   = body.uid;
-
-  if (!email || !uid) {
-    return res.status(400).json({ ok: false, error: "missing email/uid" });
-  }
+  if (!email) return res.status(400).json({ ok: false, error: "missing email" });
 
   try {
-    const token = jwt.sign(
-      { sub: uid, email },
-      process.env.JWT_SECRET,
-      { algorithm: "HS256", expiresIn: "1h" }
-    );
+    const token = jwt.sign({ email }, process.env.JWT_SECRET, {
+      algorithm: "HS256",
+      expiresIn: "1h"
+    });
 
     const githubPage = process.env.GITHUB_VERIFY_URL;
     if (!githubPage) return res.status(500).json({ ok: false, error: "server: GITHUB_VERIFY_URL not set" });
@@ -29,7 +24,6 @@ export default async function handler(req, res) {
 
     const user = process.env.GMAIL_USER;
     const pass = process.env.GMAIL_APP_PASSWORD;
-    if (!user || !pass) return res.status(500).json({ ok: false, error: "server: Gmail env not set" });
 
     const transporter = nodemailer.createTransport({
       host: "smtp.gmail.com",
@@ -38,23 +32,15 @@ export default async function handler(req, res) {
       auth: { user, pass }
     });
 
-    // Uncomment to debug SMTP connectivity in logs:
-    // await transporter.verify();
-
     const subject = "Verify your email";
-    const text =
-`Tap a link to verify:
+    const text = `
+Tap a link to verify your account:
 
-Open in app:
-${schemeLink}
+Open in app: ${schemeLink}
+Intent fallback: ${intentLink}
+HTTPS: ${httpsLink}
 
-Android intent fallback:
-${intentLink}
-
-HTTPS (redirects to app):
-${httpsLink}
-
-This link expires in 60 minutes.`;
+Expires in 1 hour.`;
 
     await transporter.sendMail({
       from: process.env.MAIL_FROM || user,
@@ -66,6 +52,6 @@ This link expires in 60 minutes.`;
     return res.json({ ok: true });
   } catch (e) {
     console.error("register error:", e?.message || e);
-    return res.status(500).json({ ok: false, error: "server: send failed" });
+    return res.status(500).json({ ok: false, error: "send failed" });
   }
 }
