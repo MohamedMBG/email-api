@@ -1,11 +1,17 @@
 {
   "name": "email-api",
-  "private": true,
-  "type": "module",
-  "engines": { "node": ">=18.18" },
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "description": "",
   "dependencies": {
-    "firebase-admin": "^12.6.0",
     "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^6.9.11"
+    "nodemailer": "^7.0.10"
   }
 }
