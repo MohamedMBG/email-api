@@ -1,0 +1,11 @@
+{
+  "name": "email-api-root",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=18.18" },
+  "dependencies": {
+    "firebase-admin": "^12.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.11"
+  }
+}
